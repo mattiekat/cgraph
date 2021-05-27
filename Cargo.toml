@@ -1,0 +1,5 @@
+[package]
+name = "cgraph"
+version = "0.1.0"
+authors = ["Matthew Conover <he@mconover.dev>"]
+edition = "2018"
