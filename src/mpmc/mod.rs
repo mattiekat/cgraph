@@ -7,20 +7,29 @@
 //!
 //! At this time an unbounded channel is not implemented, but could be added as well.
 
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 mod buffer;
 use buffer::Buffer;
 
+#[derive(Debug)]
 pub enum ChannelError {
     IsCorked,
+    Poisoned,
+    BufferFull,
 }
 
-pub struct Sender<T> {
+impl<T> From<PoisonError<T>> for ChannelError {
+    fn from(_: PoisonError<T>) -> Self {
+        Self::Poisoned
+    }
+}
+
+pub struct Sender<T: Clone> {
     buffer: Arc<Buffer<T>>,
 }
 
 /// Create a new sender which will append to the same buffer.
-impl<T> Clone for Sender<T> {
+impl<T: Clone> Clone for Sender<T> {
     fn clone(&self) -> Self {
         self.buffer.add_sender();
         Self {
@@ -29,7 +38,7 @@ impl<T> Clone for Sender<T> {
     }
 }
 
-impl<T> Drop for Sender<T> {
+impl<T: Clone> Drop for Sender<T> {
     fn drop(&mut self) {
         if self.buffer.remove_sender() == 0 {
             // since the buffer is only held within the senders and this was the last sender, it is
@@ -39,7 +48,7 @@ impl<T> Drop for Sender<T> {
     }
 }
 
-impl<T> Sender<T> {
+impl<T: Clone> Sender<T> {
     fn new(buffer: Arc<Buffer<T>>) -> Self {
         Self { buffer }
     }
@@ -49,28 +58,28 @@ impl<T> Sender<T> {
     }
 }
 
-pub struct Receiver<T> {
+pub struct Receiver<T: Clone> {
     buffer: Arc<Buffer<T>>,
     id: usize,
 }
 
 /// Make another reader of the same underlying data starting where this reader currently is.
-impl<T> Clone for Receiver<T> {
+impl<T: Clone> Clone for Receiver<T> {
     fn clone(&self) -> Self {
         Self::new(self.buffer.clone())
     }
 }
 
 /// No longer wait for this receiver to consume data
-impl<T> Drop for Receiver<T> {
+impl<T: Clone> Drop for Receiver<T> {
     fn drop(&mut self) {
-        self.buffer.drop_receiver(self.id)
+        self.buffer.drop_receiver(self.id).unwrap();
     }
 }
 
-impl<T> Receiver<T> {
+impl<T: Clone> Receiver<T> {
     fn new(buffer: Arc<Buffer<T>>) -> Self {
-        let id = buffer.new_receiver();
+        let id = buffer.new_receiver().unwrap();
         Self { buffer, id }
     }
 
@@ -81,6 +90,6 @@ impl<T> Receiver<T> {
 
 /// Create a new multiple-producer, multiple-consumer channel. It highly recommended that `T` is a
 /// suitably large data packet for efficiency.
-pub fn sync_channel<T>(bound: usize) -> (Sender<T>, Receiver<T>) {
+pub fn sync_channel<T: Clone>(bound: usize) -> (Sender<T>, Receiver<T>) {
     todo!()
 }
