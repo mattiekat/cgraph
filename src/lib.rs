@@ -3,11 +3,12 @@ use std::iter::FusedIterator;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
-use crate::data_node::{WritePipe, DataNode};
+use crate::data_node::{DataNode};
 
 struct ComputeGraphTemplate {}
 
 pub mod data_node;
+pub mod mpmc;
 
 trait ComputeNode {
     type Err;
@@ -18,21 +19,21 @@ trait ComputeNode {
 
 struct StreamFromFile {
     name: String,
-    out: WritePipe<u8>,
+    // out: WritePipe<u8>,
 }
 
 impl StreamFromFile {
-    fn new(path: &Path) -> (Self, Arc<DataNode<u8>>) {
-        let path_name = path.display();
-        let data = DataNode::new(format!("File Stream {}", path_name), 1024);
-        (
-            StreamFromFile {
-                name: format!("File Reader {}", path_name),
-                out: data.writer(),
-            },
-            data,
-        )
-    }
+    // fn new(path: &Path) -> (Self, Arc<DataNode<u8>>) {
+    //     let path_name = path.display();
+    //     let data = DataNode::new(format!("File Stream {}", path_name), 1024);
+    //     (
+    //         StreamFromFile {
+    //             name: format!("File Reader {}", path_name),
+    //             out: data.writer(),
+    //         },
+    //         data,
+    //     )
+    // }
 }
 
 impl ComputeNode for StreamFromFile {
@@ -43,17 +44,18 @@ impl ComputeNode for StreamFromFile {
     }
 
     fn process(&mut self) -> Result<(), &'static str> {
-        let buf: Vec<u8> = todo!();
-        self.out.write_stream(buf);
-        Ok(())
+        // let buf: Vec<u8> = todo!();
+        // self.out.write_stream(buf);
+        // Ok(())
+        todo!()
     }
 }
 
 fn make_pipeline() {
-    let d1 = DataNode::<u8>::new("Raw input".into(), 1024);
-    let d1_i = d1.reader();
-    let d1_o1 = d1.writer();
-    let d1_o2 = d1.writer();
+    // let d1 = DataNode::<u8>::new("Raw input".into(), 1024);
+    // let d1_i = d1.reader();
+    // let d1_o1 = d1.writer();
+    // let d1_o2 = d1.writer();
 }
 
 #[cfg(test)]
