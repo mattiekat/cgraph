@@ -8,8 +8,14 @@
 //! At this time an unbounded channel is not implemented, but could be added as well.
 
 use std::sync::{Arc, PoisonError};
-mod buffer;
+
 use buffer::Buffer;
+pub use receiver::Receiver;
+pub use sender::Sender;
+
+mod buffer;
+mod receiver;
+mod sender;
 
 #[derive(Debug)]
 pub enum ChannelError {
@@ -21,70 +27,6 @@ pub enum ChannelError {
 impl<T> From<PoisonError<T>> for ChannelError {
     fn from(_: PoisonError<T>) -> Self {
         Self::Poisoned
-    }
-}
-
-pub struct Sender<T: Clone> {
-    buffer: Arc<Buffer<T>>,
-}
-
-/// Create a new sender which will append to the same buffer.
-impl<T: Clone> Clone for Sender<T> {
-    fn clone(&self) -> Self {
-        self.buffer.add_sender();
-        Self {
-            buffer: self.buffer.clone(),
-        }
-    }
-}
-
-impl<T: Clone> Drop for Sender<T> {
-    fn drop(&mut self) {
-        if self.buffer.remove_sender() == 0 {
-            // since the buffer is only held within the senders and this was the last sender, it is
-            // time to cork it off.
-            self.buffer.cork()
-        }
-    }
-}
-
-impl<T: Clone> Sender<T> {
-    fn new(buffer: Arc<Buffer<T>>) -> Self {
-        Self { buffer }
-    }
-
-    pub fn send(&self, v: T) -> Result<(), ChannelError> {
-        self.buffer.send(v)
-    }
-}
-
-pub struct Receiver<T: Clone> {
-    buffer: Arc<Buffer<T>>,
-    id: usize,
-}
-
-/// Make another reader of the same underlying data starting where this reader currently is.
-impl<T: Clone> Clone for Receiver<T> {
-    fn clone(&self) -> Self {
-        Self::new(self.buffer.clone())
-    }
-}
-
-/// No longer wait for this receiver to consume data
-impl<T: Clone> Drop for Receiver<T> {
-    fn drop(&mut self) {
-        self.buffer.drop_receiver(self.id).unwrap();
-    }
-}
-
-impl<T: Clone> Receiver<T> {
-    fn new(buffer: Arc<Buffer<T>>) -> Self {
-        let id = buffer.new_receiver().unwrap();
-        Self { buffer, id }
-    }
-
-    pub fn recv(&self) -> Result<T, ChannelError> {
-        self.buffer.recv(self.id)
     }
 }
 
