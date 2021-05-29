@@ -95,7 +95,7 @@ impl<T: Clone> Buffer<T> {
     /// Read a value from the buffer, waiting for new data if this the cursor is already caught up.
     /// Returns None if there is no new data and the buffer has been corked.
     pub fn recv(&self, cursor_id: usize) -> Result<T, ChannelError> {
-        let mut inner = self.inner.lock()?;
+        let inner = self.inner.lock()?;
         let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
         let offset = inner.offset;
         let length = inner.data.len() as u64;
@@ -104,8 +104,8 @@ impl<T: Clone> Buffer<T> {
             if self.is_corked() {
                 return Err(IsCorked);
             }
-            let mut inner = self.on_new_data.wait(inner)?;
-            if inner.data.len() == 0 {
+            let inner = self.on_new_data.wait(inner)?;
+            if inner.data.is_empty() {
                 debug_assert!(self.is_corked());
                 return Err(IsCorked);
             }
@@ -179,11 +179,13 @@ impl<T: Clone> Buffer<T> {
     }
 
     pub fn add_sender(&self) {
+        println!("Add sender {}", self.sender_count.load(Ordering::Relaxed) + 1);
         self.sender_count.fetch_add(1, Ordering::AcqRel);
     }
 
     /// Remove a sender and return the new number of senders.
     pub fn remove_sender(&self) -> usize {
+        println!("Remove sender {}", self.sender_count.load(Ordering::Relaxed));
         let prev = self.sender_count.fetch_sub(1, Ordering::AcqRel);
         prev - 1
     }

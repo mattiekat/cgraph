@@ -29,6 +29,7 @@ impl<T: Clone> Drop for Sender<T> {
 
 impl<T: Clone> Sender<T> {
     pub(super) fn new(buffer: Arc<Buffer<T>>) -> Self {
+        buffer.add_sender();
         Self { buffer }
     }
 

@@ -1,16 +1,5 @@
-use std::collections::{HashMap, VecDeque};
 use std::fmt::{self, Debug, Formatter};
-use std::fs::File;
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock};
-
-use crate::mpmc::{sync_channel, ChannelError, Receiver, Sender};
-use std::thread;
-use std::thread::JoinHandle;
-
-struct ComputeGraphTemplate {}
+use crate::mpmc::{ChannelError, Receiver, Sender};
 
 pub mod mpmc;
 
@@ -71,7 +60,7 @@ impl<I1: Clone, O1: Clone> ComputeNode for GenericComputeNode_1_1<I1, O1> {
                 Err(ChannelError::Poisoned) => panic!("Thread was poisoned"),
                 Err(ChannelError::BufferFull) => unreachable!(),
             };
-            if (i1.is_none()) {
+            if i1.is_none() {
                 // all inputs have been exhausted
                 break;
             }
@@ -128,17 +117,21 @@ impl<I1: Clone, O1: Clone> GenericComputeNode_1_1<I1, O1> {
 //     }
 // }
 
-fn make_pipeline() {
-    // let d1 = DataNode::<u8>::new("Raw input".into(), 1024);
-    // let d1_i = d1.reader();
-    // let d1_o1 = d1.writer();
-    // let d1_o2 = d1.writer();
-}
-
 #[cfg(test)]
-mod tests {
+mod test {
+    use super::GenericComputeNode_1_1;
+    use super::mpmc::sync_channel;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn make_pipeline() {
+        let (tx1, rx1) = sync_channel::<Vec<u8>>(16);
+        let (tx2, rx2) = sync_channel::<Vec<u16>>(16);
+        let n = GenericComputeNode_1_1::new("Test".into(), (rx1), (tx2), |i1| {
+            (Some(Vec::new()))
+        });
+
+        let n2 = n.clone();
     }
+
+
 }

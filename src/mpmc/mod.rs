@@ -36,3 +36,27 @@ pub fn sync_channel<T: Clone>(bound: usize) -> (Sender<T>, Receiver<T>) {
     let buffer = Arc::new(Buffer::new(bound));
     (Sender::new(buffer.clone()), Receiver::new(buffer))
 }
+
+#[cfg(test)]
+mod test {
+    use super::sync_channel;
+
+    #[test]
+    fn make_sync_channel() {
+        let (tx, rx) = sync_channel::<u8>(4);
+        tx.try_send(23).unwrap();
+        tx.try_send(81).unwrap();
+        tx.try_send(12).unwrap();
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 23);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 81);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 12);
+
+        // make sure the window is moving since we are going past initial window
+        tx.try_send(42).unwrap();
+        tx.try_send(58).unwrap();
+        tx.try_send(36).unwrap();
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 42);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 58);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), 36);
+    }
+}
