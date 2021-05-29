@@ -28,11 +28,15 @@ impl<T: Clone> Drop for Sender<T> {
 }
 
 impl<T: Clone> Sender<T> {
-    fn new(buffer: Arc<Buffer<T>>) -> Self {
+    pub(super) fn new(buffer: Arc<Buffer<T>>) -> Self {
         Self { buffer }
     }
 
     pub fn send(&self, v: T) -> Result<(), ChannelError> {
         self.buffer.send(v)
+    }
+
+    pub fn try_send(&self, v: T) -> Result<Option<T>, ChannelError> {
+        self.buffer.try_send(v)
     }
 }

@@ -23,12 +23,16 @@ impl<T: Clone> Drop for Receiver<T> {
 }
 
 impl<T: Clone> Receiver<T> {
-    fn new(buffer: Arc<Buffer<T>>) -> Self {
+    pub(super) fn new(buffer: Arc<Buffer<T>>) -> Self {
         let id = buffer.new_receiver().unwrap();
         Self { buffer, id }
     }
 
     pub fn recv(&self) -> Result<T, ChannelError> {
         self.buffer.recv(self.id)
+    }
+
+    pub fn try_recv(&self) -> Result<Option<T>, ChannelError> {
+        self.buffer.try_recv(self.id)
     }
 }

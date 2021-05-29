@@ -33,5 +33,6 @@ impl<T> From<PoisonError<T>> for ChannelError {
 /// Create a new multiple-producer, multiple-consumer channel. It highly recommended that `T` is a
 /// suitably large data packet for efficiency.
 pub fn sync_channel<T: Clone>(bound: usize) -> (Sender<T>, Receiver<T>) {
-    todo!()
+    let buffer = Arc::new(Buffer::new(bound));
+    (Sender::new(buffer.clone()), Receiver::new(buffer))
 }
