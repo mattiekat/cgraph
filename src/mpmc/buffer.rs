@@ -93,10 +93,10 @@ impl<T: Clone> Buffer<T> {
         {
             // Lock Scope
             let mut inner = self.inner.lock()?;
-            if inner.data.len() > self.bound {
-                return Ok(Some(v));
-            } else {
+            if inner.data.len() < self.bound {
                 inner.data.push_back(v);
+            } else {
+                return Ok(Some(v));
             }
         }
         // we pushed the data so it is time to send an update

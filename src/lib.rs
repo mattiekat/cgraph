@@ -57,8 +57,7 @@ impl<I1: Clone, O1: Clone> ComputeNode for GenericComputeNode_1_1<I1, O1> {
             let i1 = match self.rx1.recv() {
                 Ok(i1) => Some(i1),
                 Err(ChannelError::IsCorked) => None,
-                Err(ChannelError::Poisoned) => panic!("Thread was poisoned"),
-                Err(ChannelError::BufferFull) => unreachable!(),
+                Err(ChannelError::Poisoned) => panic!("Thread was poisoned")
             };
             if i1.is_none() {
                 // all inputs have been exhausted

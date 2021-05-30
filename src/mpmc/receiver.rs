@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use super::{ChannelError, Buffer};
+use super::{Buffer, ChannelError};
 use std::ops::Deref;
 
 pub trait ChannelReceiver {
     type Item: Clone;
 
     /// Get the (buffer id, cursor id) for this receiver.
-    /// 
+    ///
     /// Receivers which share neither the buffer id nor the cursor id are in no way related to
     /// each other.
-    /// 
+    ///
     /// Any receivers which share the same cursor id  and buffer id will also share the same data
     /// stream, splitting data between recv calls and not having to wait on each other.
-    /// 
+    ///
     /// Any receivers which share the same buffer id but not the same cursor id will both
     /// read the same items in the stream as each other and will have to wait on each other.
     fn id(&self) -> (usize, usize);
@@ -49,7 +49,7 @@ impl<T: Clone> Drop for Receiver<T> {
 
 impl<T: Clone> ChannelReceiver for Receiver<T> {
     type Item = T;
-    
+
     fn id(&self) -> (usize, usize) {
         (self.buffer.id(), self.id)
     }
@@ -57,7 +57,7 @@ impl<T: Clone> ChannelReceiver for Receiver<T> {
     fn recv(&self) -> Result<T, ChannelError> {
         self.buffer.recv(self.id)
     }
-    
+
     fn try_recv(&self) -> Result<Option<T>, ChannelError> {
         self.buffer.try_recv(self.id)
     }
@@ -70,13 +70,12 @@ impl<T: Clone> Receiver<T> {
     }
 }
 
-
 /// SharedReceivers use the same underlying cursor allowing them to take a single Receiver instance
 /// and distribute the data between its instances instead of retuning duplicates for each instances
 /// as the underlying receiver does.
 #[derive(Clone)]
 pub struct SharedReceiver<T: Clone> {
-    rx: Arc<Receiver<T>>
+    rx: Arc<Receiver<T>>,
 }
 
 impl<T: Clone> From<Receiver<T>> for SharedReceiver<T> {
@@ -97,7 +96,7 @@ impl<T: Clone> SharedReceiver<T> {
     pub fn try_unwrap(self: Self) -> Result<Receiver<T>, Self> {
         match Arc::try_unwrap(self.rx) {
             Ok(rx) => Ok(rx),
-            Err(rx) => Err(Self { rx })
+            Err(rx) => Err(Self { rx }),
         }
     }
 }
