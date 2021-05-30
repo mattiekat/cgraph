@@ -5,6 +5,8 @@ use std::sync::{Condvar, Mutex, MutexGuard};
 use crate::mpmc::ChannelError;
 use crate::mpmc::ChannelError::IsCorked;
 
+static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
 /// Lockable inner working components of the buffer
 struct BufferInner<T> {
     data: VecDeque<T>,
@@ -29,6 +31,7 @@ pub(super) struct Buffer<T> {
     corked: AtomicBool,
     sender_count: AtomicUsize,
     bound: usize,
+    id: usize,
 }
 
 impl<T: Clone> Buffer<T> {
@@ -45,10 +48,17 @@ impl<T: Clone> Buffer<T> {
             on_data_consumed: Condvar::new(),
             corked: AtomicBool::new(false),
             sender_count: AtomicUsize::new(0),
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 
-    /// Write data
+    /// Get the unique id of this buffer.
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    /// Write data to the internal buffer for the Receivers to read. This will sleep the current
+    /// thread if the internal buffer is full and wait until there is room to write.
     pub fn send(&self, v: T) -> Result<(), ChannelError> {
         if self.is_corked() {
             return Err(ChannelError::IsCorked);
@@ -73,7 +83,9 @@ impl<T: Clone> Buffer<T> {
         Ok(())
     }
 
-    /// Attempt to write the data, will return the data if the buffer was full instead of waiting.
+    /// Attempt to write data to the internal buffer for the Receivers to read. This will return
+    /// Ok(Some(Item)) if there were no errors but the buffer was full, otherwise it will return
+    /// Ok(None) if sent successfully.
     pub fn try_send(&self, v: T) -> Result<Option<T>, ChannelError> {
         if self.is_corked() {
             return Err(ChannelError::IsCorked);
@@ -92,8 +104,8 @@ impl<T: Clone> Buffer<T> {
         Ok(None)
     }
 
-    /// Read a value from the buffer, waiting for new data if this the cursor is already caught up.
-    /// Returns None if there is no new data and the buffer has been corked.
+    /// Receive the next item from the queue, sleeping this thread until there is data automatically
+    /// if no data is present at the time of calling.
     pub fn recv(&self, cursor_id: usize) -> Result<T, ChannelError> {
         let inner = self.inner.lock()?;
         let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
@@ -119,11 +131,15 @@ impl<T: Clone> Buffer<T> {
             .expect("Error in cursor arithmetic")
             .clone();
         inner.cursors.insert(cursor_id, cursor + 1);
-        self.clean_after_read(inner, cursor_id);
+        if cursor == offset {
+            // if this cursor was at the head of the list it may be time to move the window
+            self.move_buffer_window(inner);
+        }
         Ok(v)
     }
 
-    /// Attempt to read data but do not wait on more data if it has not been generated yet.
+    /// Attempt to retrieve the next item from the queue, if no data is present, return None instead
+    /// of sleeping the thread.
     pub fn try_recv(&self, cursor_id: usize) -> Result<Option<T>, ChannelError> {
         let mut inner = self.inner.lock()?;
         let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
@@ -143,28 +159,28 @@ impl<T: Clone> Buffer<T> {
                 .expect("Error in cursor arithmetic")
                 .clone();
             inner.cursors.insert(cursor_id, cursor + 1);
-            self.clean_after_read(inner, cursor_id);
+            if cursor == offset {
+                // if this cursor was at the head of the list it may be time to move the window
+                self.move_buffer_window(inner);
+            }
             Ok(Some(v))
         }
     }
 
-    fn clean_after_read(&self, mut inner: MutexGuard<BufferInner<T>>, cursor_id: usize) {
-        let cursor = *inner.cursors.get(&cursor_id).unwrap();
-        if cursor != inner.offset + 1 {
-            // if the cursor (which was just incremented hence offset + 1) is not at the head of
-            // the list, we can skip iterating to find anyone else that is
+    /// Move sliding window if possible
+    fn move_buffer_window(&self, mut inner: MutexGuard<BufferInner<T>>) {
+        if inner.cursors.values().any(|&c| c <= inner.offset) {
+            // there is at least one cursor still at the beginning of the buffer so we can't move
+            // forward yet.
             return;
         }
-        if inner.cursors.values().all(|&c| c > inner.offset) {
-            // we were the only cursor which was at the beginning of the buffer, so slide
-            // the window and notify that there is room for more data.
-            inner.data.pop_front();
-            inner.offset += 1;
-            std::mem::drop(inner);
-            // only notify one since otherwise we will will get one new submission from
-            // each producer that was waiting
-            self.on_data_consumed.notify_one()
-        }
+
+        inner.data.pop_front();
+        inner.offset += 1;
+        std::mem::drop(inner);
+        // only notify one since otherwise we will will get one new submission from
+        // each producer that was waiting
+        self.on_data_consumed.notify_one()
     }
 
     pub fn is_corked(&self) -> bool {
@@ -179,13 +195,19 @@ impl<T: Clone> Buffer<T> {
     }
 
     pub fn add_sender(&self) {
-        println!("Add sender {}", self.sender_count.load(Ordering::Relaxed) + 1);
+        println!(
+            "Add sender {}",
+            self.sender_count.load(Ordering::Relaxed) + 1
+        );
         self.sender_count.fetch_add(1, Ordering::AcqRel);
     }
 
     /// Remove a sender and return the new number of senders.
     pub fn remove_sender(&self) -> usize {
-        println!("Remove sender {}", self.sender_count.load(Ordering::Relaxed));
+        println!(
+            "Remove sender {}",
+            self.sender_count.load(Ordering::Relaxed)
+        );
         let prev = self.sender_count.fetch_sub(1, Ordering::AcqRel);
         prev - 1
     }

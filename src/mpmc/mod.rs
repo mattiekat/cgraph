@@ -10,8 +10,8 @@
 use std::sync::{Arc, PoisonError};
 
 use buffer::Buffer;
-pub use receiver::Receiver;
-pub use sender::Sender;
+pub use receiver::*;
+pub use sender::*;
 
 mod buffer;
 mod receiver;
@@ -39,7 +39,7 @@ pub fn sync_channel<T: Clone>(bound: usize) -> (Sender<T>, Receiver<T>) {
 
 #[cfg(test)]
 mod test {
-    use super::sync_channel;
+    use super::*;
 
     #[test]
     fn make_sync_channel() {

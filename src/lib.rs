@@ -1,5 +1,5 @@
 use std::fmt::{self, Debug, Formatter};
-use crate::mpmc::{ChannelError, Receiver, Sender};
+use crate::mpmc::*;
 
 pub mod mpmc;
 
