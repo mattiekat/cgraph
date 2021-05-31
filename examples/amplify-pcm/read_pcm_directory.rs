@@ -7,11 +7,11 @@ use std::thread::JoinHandle;
 use cgraph::mpmc::{sync_channel, ChannelSender, Receiver, Sender};
 use cgraph::nodes::ComputeNode;
 
-use crate::{PcmInt, BUFFER_SIZE, LITTLE_ENDIAN, PACKET_SIZE};
+use crate::{ BUFFER_SIZE, LITTLE_ENDIAN, PACKET_SIZE};
 
 /// Read files in a directory in order (e.g. 0.pcm, 1.pcm, ...) and create new streams for each
 /// file so we can interleave the results.
-struct ReadPcmDirectory<T: Copy> {
+pub struct ReadPcmDirectory<T: Copy> {
     /// Path to the directory being read from
     path: PathBuf,
     /// Split the data by channel, will get merged later

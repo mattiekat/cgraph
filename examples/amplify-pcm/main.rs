@@ -6,8 +6,6 @@ use cgraph::nodes::ComputeNode;
 
 // A couple of easily-changeable configs in case my assumptions are incorrect.
 const LITTLE_ENDIAN: bool = true;
-type PcmInt = i16;
-type PcmFloat = f32;
 /// Size of vecs passed along the buffer (in bytes).
 const PACKET_SIZE: usize = 1024;
 /// Number of pending vecs that can be waiting.
@@ -15,6 +13,7 @@ const BUFFER_SIZE: usize = 128;
 
 mod interleave_channels;
 mod read_pcm_directory;
+mod write_pcm_file;
 
 enum EncodingType {
     Float,
@@ -33,17 +32,17 @@ impl FromStr for EncodingType {
     }
 }
 
-fn convert_int_to_float(data: Vec<PcmInt>) -> Vec<PcmFloat> {
-    data.into_iter().map(|x| x as PcmFloat).collect()
+fn convert_int_to_float(data: Vec<i16>) -> Vec<f32> {
+    data.into_iter().map(|x| x as f32).collect()
 }
 
-fn convert_float_to_int(data: Vec<PcmFloat>) -> Vec<PcmInt> {
-    data.into_iter().map(|x| x as PcmInt).collect()
+fn convert_float_to_int(data: Vec<f32>) -> Vec<i16> {
+    data.into_iter().map(|x| x as i16).collect()
 }
 
 /// f(x) = x*10^(dB/10)
-fn amplify_linear_signal(data: Vec<PcmFloat>, db: PcmFloat) -> Vec<PcmFloat> {
-    let factor = PcmFloat::powf(10.0, db / 10.0);
+fn amplify_linear_signal(data: Vec<f32>, db: f32) -> Vec<f32> {
+    let factor = f32::powf(10.0, db / 10.0);
     data.into_iter().map(|x| x * factor).collect()
 }
 
