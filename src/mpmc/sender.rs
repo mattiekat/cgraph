@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::mpmc::buffer::Buffer;
 use crate::mpmc::ChannelError;
 
-pub trait ChannelSender {
+pub trait ChannelSender: Clone {
     type Item: Clone;
 
     /// The buffer id. All ChannelSender instances with the same id are sending to the same buffer.

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{Buffer, ChannelError};
 
-pub trait ChannelReceiver {
+pub trait ChannelReceiver: Clone {
     type Item: Clone;
 
     /// Get the (buffer id, cursor id) for this receiver.
