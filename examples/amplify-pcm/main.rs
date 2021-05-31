@@ -8,6 +8,10 @@ use cgraph::nodes::ComputeNode;
 const LITTLE_ENDIAN: bool = true;
 type PcmInt = i16;
 type PcmFloat = f32;
+/// Size of vecs passed along the buffer (in bytes).
+const PACKET_SIZE: usize = 1024;
+/// Number of pending vecs that can be waiting.
+const BUFFER_SIZE: usize = 128;
 
 mod interleave_channels;
 mod read_pcm_directory;
