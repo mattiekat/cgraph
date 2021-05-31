@@ -34,7 +34,7 @@ where
         &self.name
     }
 
-    fn start(&self) {
+    fn run(&self) {
         loop {
             let i1 = match self.rx1.recv() {
                 Ok(i1) => Some(i1),

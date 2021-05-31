@@ -12,7 +12,7 @@ pub trait ComputeNode {
 
     /// Start processing input and keep going until all of the input data has been consumed or the
     /// output has been corked. This will be called from a separate thread.
-    fn start(&self);
+    fn run(&self);
 }
 
 // TODO: make a macro to generate variously sized generic nodes.
