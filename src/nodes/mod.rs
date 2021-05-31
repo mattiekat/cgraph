@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 /// Primary building block of a compute graph. Compute nodes are run in their own threads and pull
 /// data in from channels and publish to other channels. They can also interact with the console,
 /// files, the network, or any other source or sink of data.
@@ -17,6 +15,6 @@ pub trait ComputeNode {
     fn start(&self);
 }
 
-// TODO: make a macro to generate these and more.
+// TODO: make a macro to generate variously sized generic nodes.
 mod generic_compute_1_1;
 pub use generic_compute_1_1::GenericComputeNode_1_1;
