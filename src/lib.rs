@@ -1,5 +1,5 @@
-use std::fmt::{self, Debug, Formatter};
 use crate::mpmc::*;
+use std::fmt::{self, Debug, Formatter};
 
 pub mod mpmc;
 
@@ -57,7 +57,7 @@ impl<I1: Clone, O1: Clone> ComputeNode for GenericComputeNode_1_1<I1, O1> {
             let i1 = match self.rx1.recv() {
                 Ok(i1) => Some(i1),
                 Err(ChannelError::IsCorked) => None,
-                Err(ChannelError::Poisoned) => panic!("Thread was poisoned")
+                Err(ChannelError::Poisoned) => panic!("Thread was poisoned"),
             };
             if i1.is_none() {
                 // all inputs have been exhausted
@@ -118,19 +118,15 @@ impl<I1: Clone, O1: Clone> GenericComputeNode_1_1<I1, O1> {
 
 #[cfg(test)]
 mod test {
-    use super::GenericComputeNode_1_1;
     use super::mpmc::sync_channel;
+    use super::GenericComputeNode_1_1;
 
     #[test]
     fn make_pipeline() {
         let (tx1, rx1) = sync_channel::<Vec<u8>>(16);
         let (tx2, rx2) = sync_channel::<Vec<u16>>(16);
-        let n = GenericComputeNode_1_1::new("Test".into(), (rx1), (tx2), |i1| {
-            (Some(Vec::new()))
-        });
+        let n = GenericComputeNode_1_1::new("Test".into(), (rx1), (tx2), |i1| (Some(Vec::new())));
 
         let n2 = n.clone();
     }
-
-
 }

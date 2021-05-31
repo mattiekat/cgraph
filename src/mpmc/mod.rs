@@ -7,13 +7,12 @@
 //!
 //! At this time an unbounded channel is not implemented, but could be added as well.
 
+use std::fmt::Debug;
 use std::sync::{Arc, PoisonError};
 
-use crate::fmt;
 use buffer::Buffer;
 pub use receiver::*;
 pub use sender::*;
-use std::fmt::{Debug};
 
 mod buffer;
 mod receiver;
@@ -40,9 +39,10 @@ pub fn sync_channel<T: Clone>(bound: usize) -> (Sender<T>, Receiver<T>) {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::thread;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use super::*;
 
     fn pseudo_random_duration() -> Duration {
         // semi-random duration between 0 and 1ms

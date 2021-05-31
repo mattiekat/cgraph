@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use super::{Buffer, ChannelError};
-use std::ops::Deref;
 
 pub trait ChannelReceiver {
     type Item: Clone;
