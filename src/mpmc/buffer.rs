@@ -107,24 +107,33 @@ impl<T: Clone> Buffer<T> {
     /// Receive the next item from the queue, sleeping this thread until there is data automatically
     /// if no data is present at the time of calling.
     pub fn recv(&self, cursor_id: usize) -> Result<T, ChannelError> {
-        let inner = self.inner.lock()?;
-        let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
-        let offset = inner.offset;
-        let length = inner.data.len() as u64;
-        let mut inner = if cursor >= length + offset {
-            // no data left to read
-            if self.is_corked() {
-                return Err(IsCorked);
+        let mut inner = loop {
+            // making this a scope because it will pause during this and vars will change and need
+            // to be re-set after
+            let inner = self.inner.lock()?;
+            let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
+            let offset = inner.offset;
+            let length = inner.data.len() as u64;
+            if cursor >= length + offset {
+                // no data left to read
+                if self.is_corked() {
+                    return Err(IsCorked);
+                }
+                let inner = self.on_new_data.wait(inner)?;
+                if !inner.data.is_empty() {
+                    break inner;
+                } else if self.is_corked() {
+                    return Err(IsCorked);
+                } else {
+                    // shared cursor situation where we are the looser of the race
+                }
+            } else {
+                break inner;
             }
-            let inner = self.on_new_data.wait(inner)?;
-            if inner.data.is_empty() {
-                debug_assert!(self.is_corked());
-                return Err(IsCorked);
-            }
-            inner
-        } else {
-            inner
         };
+        // re-set values because they may have changed after waiting
+        let offset = inner.offset;
+        let cursor = *inner.cursors.get(&cursor_id).expect("Cursor id is invalid");
         let v = inner
             .data
             .get((cursor - offset) as usize)
@@ -195,19 +204,11 @@ impl<T: Clone> Buffer<T> {
     }
 
     pub fn add_sender(&self) {
-        println!(
-            "Add sender {}",
-            self.sender_count.load(Ordering::Relaxed) + 1
-        );
         self.sender_count.fetch_add(1, Ordering::AcqRel);
     }
 
     /// Remove a sender and return the new number of senders.
     pub fn remove_sender(&self) -> usize {
-        println!(
-            "Remove sender {}",
-            self.sender_count.load(Ordering::Relaxed)
-        );
         let prev = self.sender_count.fetch_sub(1, Ordering::AcqRel);
         prev - 1
     }
@@ -229,5 +230,10 @@ impl<T: Clone> Buffer<T> {
     pub fn drop_receiver(&self, id: usize) -> Result<(), ChannelError> {
         self.inner.lock()?.cursors.remove(&id);
         Ok(())
+    }
+
+    pub fn len(&self) -> Result<usize, ChannelError> {
+        // TODO: we could store this outside the mutex with an atomic usize
+        Ok(self.inner.lock()?.data.len())
     }
 }

@@ -17,6 +17,16 @@ pub trait ChannelSender {
     /// Ok(Some(Item)) if there were no errors but the buffer was full, otherwise it will return
     /// Ok(None) if sent successfully.
     fn try_send(&self, v: Self::Item) -> Result<Option<Self::Item>, ChannelError>;
+
+    /// Cork this channel indicating no new information will be send form this sender or any other
+    /// senders to the same buffer.
+    fn cork(&self);
+
+    /// Check if the channel has been corked and will not accept any new inputs.
+    fn is_corked(&self) -> bool;
+
+    /// The number of items not yet processed by receivers.
+    fn pending(&self) -> Result<usize, ChannelError>;
 }
 
 pub struct Sender<T: Clone> {
@@ -56,6 +66,18 @@ impl<T: Clone> ChannelSender for Sender<T> {
 
     fn try_send(&self, v: T) -> Result<Option<T>, ChannelError> {
         self.buffer.try_send(v)
+    }
+
+    fn cork(&self) {
+        self.buffer.cork()
+    }
+
+    fn is_corked(&self) -> bool {
+        self.buffer.is_corked()
+    }
+
+    fn pending(&self) -> Result<usize, ChannelError> {
+        self.buffer.len()
     }
 }
 

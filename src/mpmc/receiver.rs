@@ -25,6 +25,13 @@ pub trait ChannelReceiver {
     /// Attempt to retrieve the next item from the queue, if no data is present, return None instead
     /// of sleeping the thread.
     fn try_recv(&self) -> Result<Option<Self::Item>, ChannelError>;
+
+    /// Check if the channel is corked and no new data will come in. Even if it is corked,
+    /// there may still be more data left to retrieve.
+    fn is_corked(&self) -> bool;
+
+    /// The number of items pending being received.
+    fn pending(&self) -> Result<usize, ChannelError>;
 }
 
 pub struct Receiver<T: Clone> {
@@ -43,7 +50,10 @@ impl<T: Clone> Clone for Receiver<T> {
 /// No longer wait for this receiver to consume data
 impl<T: Clone> Drop for Receiver<T> {
     fn drop(&mut self) {
-        self.buffer.drop_receiver(self.id).unwrap();
+        // this should panic only if there there was another panic which is leading to this cleanup,
+        // so avoid unwrapping here to prevent seeing the cryptic error
+        // `SIGILL: illegal instruction` which results from a panic during a panic.
+        self.buffer.drop_receiver(self.id);
     }
 }
 
@@ -60,6 +70,14 @@ impl<T: Clone> ChannelReceiver for Receiver<T> {
 
     fn try_recv(&self) -> Result<Option<T>, ChannelError> {
         self.buffer.try_recv(self.id)
+    }
+
+    fn is_corked(&self) -> bool {
+        self.buffer.is_corked()
+    }
+
+    fn pending(&self) -> Result<usize, ChannelError> {
+        self.buffer.len()
     }
 }
 
@@ -84,11 +102,27 @@ impl<T: Clone> From<Receiver<T>> for SharedReceiver<T> {
     }
 }
 
-impl<T: Clone> Deref for SharedReceiver<T> {
-    type Target = Receiver<T>;
+impl<T: Clone> ChannelReceiver for SharedReceiver<T> {
+    type Item = T;
 
-    fn deref(&self) -> &Self::Target {
-        &*self.rx
+    fn id(&self) -> (usize, usize) {
+        self.rx.id()
+    }
+
+    fn recv(&self) -> Result<T, ChannelError> {
+        self.rx.recv()
+    }
+
+    fn try_recv(&self) -> Result<Option<T>, ChannelError> {
+        self.rx.try_recv()
+    }
+
+    fn is_corked(&self) -> bool {
+        self.rx.is_corked()
+    }
+
+    fn pending(&self) -> Result<usize, ChannelError> {
+        self.rx.pending()
     }
 }
 
