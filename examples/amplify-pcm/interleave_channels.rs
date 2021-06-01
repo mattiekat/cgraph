@@ -1,6 +1,6 @@
+use crate::PACKET_SIZE;
 use cgraph::mpmc::{ChannelError, ChannelReceiver, ChannelSender, Receiver, Sender};
 use cgraph::nodes::ComputeNode;
-use crate::PACKET_SIZE;
 use std::mem;
 
 pub struct InterleaveChannels<T: Copy> {
@@ -8,7 +8,7 @@ pub struct InterleaveChannels<T: Copy> {
     pub output: Sender<Vec<T>>,
 }
 
-impl<T: Copy> ComputeNode for InterleaveChannels<T> {
+impl<T: Copy + Send> ComputeNode for InterleaveChannels<T> {
     fn name(&self) -> &str {
         "Interleave Channels"
     }

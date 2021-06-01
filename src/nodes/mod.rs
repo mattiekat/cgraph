@@ -6,7 +6,7 @@
 /// 1. Spin up multiple threads within the `start` function
 /// 2. the other is to implement `Clone` and to create multiple instances. This has the downside of
 ///    making data no longer progress though the pipeline in a guaranteed order.
-pub trait ComputeNode {
+pub trait ComputeNode: Send {
     /// Get the name of this node for debugging.
     fn name(&self) -> &str;
 
