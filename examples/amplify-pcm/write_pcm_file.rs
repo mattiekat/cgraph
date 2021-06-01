@@ -45,6 +45,7 @@ impl ComputeNode for WritePcmFile<i16> {
             // flush anything that remains
             file.write_all(&buffer[0..cursor])
                 .expect("Error writing to output file.");
+            file.flush().expect("Error writing to output file.");
         }
     }
 }
@@ -83,6 +84,7 @@ impl ComputeNode for WritePcmFile<f32> {
             // flush anything that remains
             file.write_all(&buffer[0..cursor])
                 .expect("Error writing to output file.");
+            file.flush().expect("Error writing to output file.");
         }
     }
 }

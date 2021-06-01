@@ -1,7 +1,9 @@
 use cgraph::mpmc::{ChannelError, ChannelReceiver, ChannelSender, Receiver, Sender};
 use cgraph::nodes::ComputeNode;
+use crate::PACKET_SIZE;
+use std::mem;
 
-struct InterleaveChannels<T: Copy> {
+pub struct InterleaveChannels<T: Copy> {
     pub channels: Vec<Receiver<Vec<T>>>,
     pub output: Sender<Vec<T>>,
 }
@@ -12,10 +14,9 @@ impl<T: Copy> ComputeNode for InterleaveChannels<T> {
     }
 
     fn run(&self) {
-        const TARGET_BUFFER_SIZE: usize = 1024;
         let num_channels = self.channels.len();
         let mut buffers = Vec::with_capacity(num_channels);
-        let mut output_buffer: Vec<T> = Vec::with_capacity(TARGET_BUFFER_SIZE + num_channels - 1);
+        let mut output_buffer: Vec<T> = Vec::with_capacity(PACKET_SIZE);
 
         // initialize
         for _ in 0..num_channels {
@@ -23,6 +24,12 @@ impl<T: Copy> ComputeNode for InterleaveChannels<T> {
         }
         // interleave over samples
         'outer: loop {
+            if (output_buffer.len() + num_channels) * mem::size_of::<T>() > PACKET_SIZE {
+                // flush because it would overflow if we don't
+                let mut tbuf = Vec::with_capacity(num_channels);
+                std::mem::swap(&mut tbuf, &mut output_buffer);
+                self.output.send(tbuf).unwrap();
+            }
             for i in 0..num_channels {
                 // write
                 if let Some(v) = buffers[i].next() {
@@ -34,7 +41,7 @@ impl<T: Copy> ComputeNode for InterleaveChannels<T> {
                 match self.channels[i].recv() {
                     Ok(new_buf) => {
                         // found the next set of data for this channel
-                        debug_assert!(new_buf.len() > 0);
+                        debug_assert!(!new_buf.is_empty());
                         buffers[i] = new_buf.into_iter();
                         output_buffer.push(buffers[i].next().unwrap());
                     }
@@ -53,16 +60,20 @@ impl<T: Copy> ComputeNode for InterleaveChannels<T> {
                     Err(ChannelError::Poisoned) => panic!("Poisoned channel"),
                 }
             }
-            if output_buffer.len() > TARGET_BUFFER_SIZE {
-                // flush
-                let mut tbuf = Vec::with_capacity(num_channels);
-                std::mem::swap(&mut tbuf, &mut output_buffer);
-                self.output.send(tbuf).unwrap();
-            }
         }
         if !output_buffer.is_empty() {
             self.output.send(output_buffer).unwrap();
         }
         self.output.cork();
+    }
+}
+
+impl<T: Copy> InterleaveChannels<T> {
+    pub fn new(channels: Vec<Receiver<Vec<T>>>, output: Sender<Vec<T>>) -> Self {
+        Self { channels, output }
+    }
+    
+    pub fn add_input_channel(&mut self, rx: Receiver<Vec<T>>) {
+        self.channels.push(rx)
     }
 }
