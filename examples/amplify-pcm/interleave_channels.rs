@@ -72,7 +72,7 @@ impl<T: Copy> InterleaveChannels<T> {
     pub fn new(channels: Vec<Receiver<Vec<T>>>, output: Sender<Vec<T>>) -> Self {
         Self { channels, output }
     }
-    
+
     pub fn add_input_channel(&mut self, rx: Receiver<Vec<T>>) {
         self.channels.push(rx)
     }

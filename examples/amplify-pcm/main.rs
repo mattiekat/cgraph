@@ -18,6 +18,7 @@ mod interleave_channels;
 mod read_pcm_directory;
 mod write_pcm_file;
 
+#[derive(Copy, Clone, Debug)]
 enum EncodingType {
     Float,
     Int,
@@ -114,13 +115,6 @@ pub fn main() {
         .map(|v| v.parse::<EncodingType>().unwrap())
         .expect("Output data type to be specified as 'float' or 'int'");
 
-    // Admittedly this is more complicated than I wanted it to be, but this is partially the
-    // consequence of statically typed components which need to get put together in very different
-    // ways. One way to keep this from getting worse as more parts get put together is finding
-    // common type convergences between alternative branches and merging that way. The other thing
-    // that can be done in some cases is to only support one data type though the pipeline itself.
-    // To make it simpler we could just make the pipeline only use floats internally and convert at
-    // the boundaries.
     let nodes = match input_type {
         EncodingType::Float => {
             match output_type {

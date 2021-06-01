@@ -5,20 +5,38 @@ use std::path::PathBuf;
 use cgraph::mpmc::{ChannelReceiver, Receiver};
 use cgraph::nodes::ComputeNode;
 
-use crate::{LITTLE_ENDIAN, PACKET_SIZE};
+use crate::{EncodingType, LITTLE_ENDIAN, PACKET_SIZE};
 
 /// Write a stream of PCM data to a file.
-pub struct WritePcmFile<T: Copy> {
+pub struct WritePcmFile {
     path: PathBuf,
-    channel: Receiver<Vec<T>>,
+    channel: Receiver<Vec<f32>>,
+    write_type: EncodingType,
 }
 
-impl ComputeNode for WritePcmFile<i16> {
+impl ComputeNode for WritePcmFile {
     fn name(&self) -> &str {
-        "Write PCM File i16"
+        "Write PCM File"
     }
 
     fn run(&self) {
+        match self.write_type {
+            EncodingType::Float => self.write_i16(),
+            EncodingType::Int => self.write_f32(),
+        }
+    }
+}
+
+impl WritePcmFile {
+    pub fn new(path: PathBuf, channel: Receiver<Vec<f32>>, write_type: EncodingType) -> Self {
+        Self {
+            path,
+            channel,
+            write_type,
+        }
+    }
+
+    fn write_i16(&self) {
         let mut file = File::create(&self.path).expect("Unable to open file for writing");
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
@@ -32,9 +50,9 @@ impl ComputeNode for WritePcmFile<i16> {
                 }
 
                 let bytes: [u8; 2] = if LITTLE_ENDIAN {
-                    v.to_le_bytes()
+                    (v as i16).to_le_bytes()
                 } else {
-                    v.to_be_bytes()
+                    (v as i16).to_be_bytes()
                 };
                 buffer[cursor] = bytes[0];
                 buffer[cursor + 1] = bytes[1];
@@ -48,14 +66,8 @@ impl ComputeNode for WritePcmFile<i16> {
             file.flush().expect("Error writing to output file.");
         }
     }
-}
 
-impl ComputeNode for WritePcmFile<f32> {
-    fn name(&self) -> &str {
-        "Write PCM File f32"
-    }
-
-    fn run(&self) {
+    fn write_f32(&self) {
         let mut file = File::create(&self.path).expect("Unable to open file for writing");
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
@@ -86,11 +98,5 @@ impl ComputeNode for WritePcmFile<f32> {
                 .expect("Error writing to output file.");
             file.flush().expect("Error writing to output file.");
         }
-    }
-}
-
-impl<T: Copy> WritePcmFile<T> {
-    pub fn new(path: PathBuf, channel: Receiver<Vec<T>>) -> Self {
-        Self { path, channel }
     }
 }
