@@ -1,9 +1,9 @@
 use std::str::FromStr;
-use std::{env, thread};
+use std::{env, thread, io};
 
 use crate::interleave_channels::InterleaveChannels;
 use crate::read_pcm_directory::ReadPcmDirectory;
-use crate::write_pcm_file::WritePcmFile;
+use crate::write_pcm_stdout::WritePcmStdout;
 use cgraph::mpmc::*;
 use cgraph::nodes::{ComputeNode, GenericComputeNode_1_1};
 
@@ -16,7 +16,7 @@ const BUFFER_SIZE: usize = 128;
 
 mod interleave_channels;
 mod read_pcm_directory;
-mod write_pcm_file;
+mod write_pcm_stdout;
 
 #[derive(Copy, Clone, Debug)]
 pub enum EncodingType {
@@ -90,8 +90,7 @@ pub fn main() {
         amplified_channels,
         interleaved_tx,
     )));
-    nodes.push(Box::new(WritePcmFile::new(
-        "out.pcm".into(),
+    nodes.push(Box::new(WritePcmStdout::new(
         interleaved_rx,
         output_type,
     )));

@@ -1,6 +1,4 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+use std::io::{Stdout, Write};
 
 use cgraph::mpmc::{ChannelReceiver, Receiver};
 use cgraph::nodes::ComputeNode;
@@ -8,15 +6,14 @@ use cgraph::nodes::ComputeNode;
 use crate::{EncodingType, LITTLE_ENDIAN, PACKET_SIZE};
 
 /// Write a stream of PCM data to a file.
-pub struct WritePcmFile {
-    path: PathBuf,
+pub struct WritePcmStdout {
     channel: Receiver<Vec<f32>>,
     write_type: EncodingType,
 }
 
-impl ComputeNode for WritePcmFile {
+impl ComputeNode for WritePcmStdout {
     fn name(&self) -> &str {
-        "Write PCM File"
+        "Write PCM to Stdout"
     }
 
     fn run(&self) {
@@ -27,17 +24,16 @@ impl ComputeNode for WritePcmFile {
     }
 }
 
-impl WritePcmFile {
-    pub fn new(path: PathBuf, channel: Receiver<Vec<f32>>, write_type: EncodingType) -> Self {
+impl WritePcmStdout {
+    pub fn new(channel: Receiver<Vec<f32>>, write_type: EncodingType) -> Self {
         Self {
-            path,
             channel,
             write_type,
         }
     }
 
     fn write_i16(&self) {
-        let mut file = File::create(&self.path).expect("Unable to open file for writing");
+        let mut file = std::io::stdout().lock();
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
         while let Ok(vals) = self.channel.recv() {
@@ -68,7 +64,7 @@ impl WritePcmFile {
     }
 
     fn write_f32(&self) {
-        let mut file = File::create(&self.path).expect("Unable to open file for writing");
+        let mut file = std::io::stdout().lock();
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
         while let Ok(vals) = self.channel.recv() {
