@@ -18,8 +18,8 @@ impl ComputeNode for WritePcmStdout {
 
     fn run(&self) {
         match self.write_type {
-            EncodingType::Float => self.write_i16(),
-            EncodingType::Int => self.write_f32(),
+            EncodingType::Float => self.write_f32(),
+            EncodingType::Int => self.write_i16(),
         }
     }
 }
@@ -47,9 +47,9 @@ impl WritePcmStdout {
                 }
 
                 let bytes: [u8; 2] = if LITTLE_ENDIAN {
-                    (v as i16).to_le_bytes()
+                    (v.round() as i16).to_le_bytes()
                 } else {
-                    (v as i16).to_be_bytes()
+                    (v.round() as i16).to_be_bytes()
                 };
                 buffer[cursor] = bytes[0];
                 buffer[cursor + 1] = bytes[1];

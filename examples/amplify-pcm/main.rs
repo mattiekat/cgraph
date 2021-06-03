@@ -53,6 +53,7 @@ pub fn main() {
         .expect("Expected a channel count to be specified")
         .parse::<usize>()
         .expect("Unable to parse number of expected channels");
+    assert!(channel_count > 0, "Must specify at least 1 channel!");
     let input_type = args
         .next()
         .map(|v| v.parse::<EncodingType>().unwrap())
