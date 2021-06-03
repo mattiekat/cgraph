@@ -1,3 +1,5 @@
+//! Generic compute nodes which form the building blocks of a compute graph.
+
 /// Primary building block of a compute graph. Compute nodes are run in their own threads and pull
 /// data in from channels and publish to other channels. They can also interact with the console,
 /// files, the network, or any other source or sink of data.

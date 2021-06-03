@@ -192,6 +192,7 @@ impl<T: Clone> Buffer<T> {
         self.on_data_consumed.notify_one()
     }
 
+    /// Check if this buffer is no longer accepting new inputs.
     pub fn is_corked(&self) -> bool {
         return self.corked.load(Ordering::Acquire);
     }
@@ -203,6 +204,7 @@ impl<T: Clone> Buffer<T> {
         self.on_new_data.notify_all();
     }
 
+    /// Register that a new sender exists by incrementing an internal count.
     pub fn add_sender(&self) {
         self.sender_count.fetch_add(1, Ordering::AcqRel);
     }
@@ -213,6 +215,7 @@ impl<T: Clone> Buffer<T> {
         prev - 1
     }
 
+    /// Get the current number of registered senders.
     pub fn senders(&self) -> usize {
         self.sender_count.load(Ordering::Acquire)
     }
@@ -226,12 +229,15 @@ impl<T: Clone> Buffer<T> {
         inner.cursors.insert(id, offset);
         Ok(id)
     }
-
+    
+    /// Remove the cursor for a receiver and perform any other necessary cleanup. This buffer will
+    /// no longer wait on the provided receiver.
     pub fn drop_receiver(&self, id: usize) -> Result<(), ChannelError> {
         self.inner.lock()?.cursors.remove(&id);
         Ok(())
     }
 
+    /// Current number of pending elements in the buffer.
     pub fn len(&self) -> Result<usize, ChannelError> {
         // TODO: we could store this outside the mutex with an atomic usize
         Ok(self.inner.lock()?.data.len())

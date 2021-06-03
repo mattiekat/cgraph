@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::{env, thread, io};
+use std::{env, thread};
 
 use crate::interleave_channels::InterleaveChannels;
 use crate::read_pcm_directory::ReadPcmDirectory;

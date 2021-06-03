@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::mpmc::buffer::Buffer;
 use crate::mpmc::ChannelError;
 
+/// A generic sender of packets/data for a `mpmc` channel. This is a producer.
 pub trait ChannelSender: Clone {
     type Item: Clone;
 
@@ -29,6 +30,7 @@ pub trait ChannelSender: Clone {
     fn pending(&self) -> Result<usize, ChannelError>;
 }
 
+/// In-memory `ChannelSender` implementation which uses a locking buffer with multiple cursors.
 pub struct Sender<T: Clone> {
     buffer: Arc<Buffer<T>>,
 }

@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use super::{Buffer, ChannelError};
 
+/// A generic receiver of packets/data for a `mpmc` channel. This is a consumer with a cursor in the
+/// buffer.
 pub trait ChannelReceiver: Clone {
     type Item: Clone;
 
@@ -33,6 +35,7 @@ pub trait ChannelReceiver: Clone {
     fn pending(&self) -> Result<usize, ChannelError>;
 }
 
+/// In-memory `ChannelReceiver` implementation which uses a locking buffer with multiple cursors.
 pub struct Receiver<T: Clone> {
     buffer: Arc<Buffer<T>>,
     id: usize,

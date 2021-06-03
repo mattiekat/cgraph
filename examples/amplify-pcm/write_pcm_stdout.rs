@@ -1,11 +1,12 @@
-use std::io::{Stdout, Write};
+use std::io::Write;
 
 use cgraph::mpmc::{ChannelReceiver, Receiver};
 use cgraph::nodes::ComputeNode;
 
 use crate::{EncodingType, LITTLE_ENDIAN, PACKET_SIZE};
 
-/// Write a stream of PCM data to a file.
+/// Write a stream of PCM data to stdout as the appropriate format. If writing integers it will
+/// round the floats first.
 pub struct WritePcmStdout {
     channel: Receiver<Vec<f32>>,
     write_type: EncodingType,

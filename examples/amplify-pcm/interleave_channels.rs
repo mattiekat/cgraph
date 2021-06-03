@@ -3,6 +3,11 @@ use cgraph::mpmc::{ChannelError, ChannelReceiver, ChannelSender, Receiver, Sende
 use cgraph::nodes::ComputeNode;
 use std::mem;
 
+/// Take 1 or more input channels and round-robin their values into a single output. It will read
+/// the channels in order and round-robin at the `T` level and not the packet level.
+///
+/// If packets are of different sizes it will wait for more data from the one which runs out, and if
+/// a channel runs out before another, it will drop any data after the last complete round-robining.
 pub struct InterleaveChannels<T: Copy> {
     pub channels: Vec<Receiver<Vec<T>>>,
     pub output: Sender<Vec<T>>,
@@ -47,7 +52,7 @@ impl<T: Copy + Send> ComputeNode for InterleaveChannels<T> {
                     }
                     Err(ChannelError::IsCorked) => {
                         // found the end of data for this channel
-                        if i + 1 < num_channels {
+                        if i > 0 {
                             // we want 1 record for all channels, so since this one is done
                             // and there are more channels we are not merging, backtrack to the
                             // previous sample which was full.
@@ -110,5 +115,34 @@ mod test {
             }
         }
         assert_eq!(next, 200);
+    }
+
+    #[test]
+    fn interleaving_uneven() {
+        let (ch0_tx, ch0_rx) = sync_channel(1);
+        let (ch1_tx, ch1_rx) = sync_channel(1);
+        let (out_tx, out_rx) = sync_channel(1);
+
+        let handle = thread::spawn(move || {
+            InterleaveChannels::new(vec![ch0_rx, ch1_rx], out_tx).run();
+        });
+
+        // end result should be 0 to 200 in combined channel in order.
+        ch0_tx.send(vec![0]);
+        ch1_tx.send(vec![1, 3]);
+        ch0_tx.send(vec![2, 4, 6]);
+        ch1_tx.send(vec![5]);
+        ch0_tx.send(vec![8, 10]);
+        ch0_tx.cork();
+        ch1_tx.cork();
+        handle.join().unwrap();
+        let mut next = 0;
+        while let Ok(packet) = out_rx.recv() {
+            for i in packet {
+                assert_eq!(i, next);
+                next += 1;
+            }
+        }
+        assert_eq!(next, 6);
     }
 }
