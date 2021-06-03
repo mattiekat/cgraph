@@ -77,3 +77,38 @@ impl<T: Copy> InterleaveChannels<T> {
         self.channels.push(rx)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use cgraph::mpmc::sync_channel;
+    use std::thread;
+
+    #[test]
+    fn interleaving() {
+        let (ch0_tx, ch0_rx) = sync_channel(1);
+        let (ch1_tx, ch1_rx) = sync_channel(1);
+        let (out_tx, out_rx) = sync_channel(1);
+
+        let handle = thread::spawn(move || {
+            InterleaveChannels::new(vec![ch0_rx, ch1_rx], out_tx).run();
+        });
+
+        // end result should be 0 to 200 in combined channel in order.
+        for i in 0..10 {
+            ch0_tx.send(((i * 10)..((i + 1) * 10)).map(|v| v * 2).collect());
+            ch1_tx.send(((i * 10)..((i + 1) * 10)).map(|v| v * 2 + 1).collect());
+        }
+        ch0_tx.cork();
+        ch1_tx.cork();
+        handle.join().unwrap();
+        let mut next = 0;
+        while let Ok(packet) = out_rx.recv() {
+            for i in packet {
+                assert_eq!(i, next);
+                next += 1;
+            }
+        }
+        assert_eq!(next, 200);
+    }
+}

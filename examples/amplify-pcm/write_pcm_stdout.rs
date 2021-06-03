@@ -33,7 +33,8 @@ impl WritePcmStdout {
     }
 
     fn write_i16(&self) {
-        let mut file = std::io::stdout().lock();
+        let stdout = std::io::stdout();
+        let mut file = stdout.lock();
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
         while let Ok(vals) = self.channel.recv() {
@@ -64,7 +65,8 @@ impl WritePcmStdout {
     }
 
     fn write_f32(&self) {
-        let mut file = std::io::stdout().lock();
+        let stdout = std::io::stdout();
+        let mut file = stdout.lock();
         let mut buffer = [0u8; PACKET_SIZE];
         let mut cursor = 0usize;
         while let Ok(vals) = self.channel.recv() {
